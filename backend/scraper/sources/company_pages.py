@@ -324,7 +324,18 @@ async def scrape_single_career_page(company: Company, shared_browser=None,
                 from backend.scraper._shared.analysis import prefetch_h1b
                 await prefetch_h1b([company.name])
 
-            for j in jobs_needing_desc:
+            for index, j in enumerate(jobs_needing_desc, start=1):
+                # The per-job analysis and SQLAlchemy writes below are synchronous on
+                # cache hits / successful DB calls. Large API boards (Oracle can return
+                # thousands of postings) would otherwise keep this async worker on the
+                # event loop for a long stretch and make the whole API appear hung.
+                # Cooperatively let request handlers and other background tasks run.
+                await asyncio.sleep(0)
+                if index % 250 == 0:
+                    logger.info(
+                        f"{company_name}: ingesting jobs {index}/{len(jobs_needing_desc)}"
+                    )
+
                 ext_id = j["_ext_id"]
                 content_hash = j["_content_hash"]
                 desc = desc_map.get(j["url"])
