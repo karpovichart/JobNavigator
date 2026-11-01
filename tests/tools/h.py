@@ -148,7 +148,7 @@ def browser(headless=True):
             b.close()
 
 
-NEWUI_VERSION = "3.1"   # frontend/src/onboarding.js NEWUI_VERSION: the upgrade notice is seen
+NEWUI_VERSION = "3.1"   # frontend/src/onboarding.js NEWUI_VERSION: the scripts notice is seen
 
 
 def telemetry_answer(ctx, **over):

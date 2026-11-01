@@ -1,4 +1,4 @@
-"""Automatic pg_dump before a version upgrade migrates the database.
+"""Automatic pg_dump before a version scripts migrates the database.
 
 The decision is pure (`decide`); `prepare_upgrade` runs the dump, stops startup when
 it fails and honours JN_SKIP_UPGRADE_BACKUP; the marker round-trips through
@@ -56,7 +56,7 @@ def test_backup_runs_with_the_pre_upgrade_name(caplog, monkeypatch):
     def dump(prefix):
         prefixes.append(prefix)
         return {"file": prefix + "20261017_120000.sql", "size_mb": 23.4}
-    with caplog.at_level(logging.INFO, logger="jobnavigator.upgrade"):
+    with caplog.at_level(logging.INFO, logger="jobnavigator.scripts"):
         d = prepare_upgrade(TWO_X, dump=dump, code_version="3.0")
     assert d.backup is True
     assert prefixes == ["pre_upgrade_2.x_to_3.0_"]
@@ -73,7 +73,7 @@ def test_failed_backup_stops_startup(caplog, monkeypatch):
 
     def dump(prefix):
         raise RuntimeError("pg_dump failed: pg_dump: error: could not open output file: Permission denied")
-    with caplog.at_level(logging.ERROR, logger="jobnavigator.upgrade"):
+    with caplog.at_level(logging.ERROR, logger="jobnavigator.scripts"):
         with pytest.raises(ub.UpgradeBackupFailed) as exc:
             prepare_upgrade(TWO_X, dump=dump, code_version="3.0")
     msg = str(exc.value)
@@ -94,10 +94,10 @@ def test_a_timeout_also_stops_startup(monkeypatch):
 def test_skip_env_migrates_without_a_backup(monkeypatch, caplog):
     monkeypatch.setenv(ub.SKIP_ENV, "1")
     called = []
-    with caplog.at_level(logging.WARNING, logger="jobnavigator.upgrade"):
+    with caplog.at_level(logging.WARNING, logger="jobnavigator.scripts"):
         d = prepare_upgrade(TWO_X, dump=lambda p: called.append(p), code_version="3.0")
     assert d.backup is True and called == []
-    assert "WITHOUT a pre-upgrade backup" in caplog.text
+    assert "WITHOUT a pre-scripts backup" in caplog.text
 
 
 # ── marker round trip ───────────────────────────────────────────────────────

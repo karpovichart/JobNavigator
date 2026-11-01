@@ -1,4 +1,4 @@
-"""newui — the 2.0 upgrade announcement (App.jsx / NewUiModal.jsx) and the
+"""newui — the 2.0 scripts announcement (App.jsx / NewUiModal.jsx) and the
 old /classic bookmarks.
 
 Facts, all keyed off localStorage, all checked in throwaway contexts so the
@@ -8,7 +8,7 @@ user's own storage is never involved:
      key) sees "Welcome to the new JobNavigator" once. Closing it — by Escape,
      the scrim, the ✕ or "Got it", all one `onClose` — writes
      `jobnavigator_newui_seen = '3.1'` and the next load is clean.
-  2. A GENUINELY FRESH profile sees the first-run tour instead; the upgrade modal
+  2. A GENUINELY FRESH profile sees the first-run tour instead; the scripts modal
      is not marked seen while the tour is up, and closing the tour marks it seen
      (V-01), so the visit after the tour is clean.
   3. The classic dashboard was removed in 3.0: `/classic` and `/classic/<screen>`
@@ -31,7 +31,7 @@ SEEN_KEY = 'jobnavigator_newui_seen'
 TELEMETRY_TITLE = 'Allow anonymous telemetry?'   # TelemetryChoice.jsx, asked of the owner once
 VERSION = '3.1'
 
-# The tour's own title is a PREFIX of the upgrade modal's, so "is the tour up?"
+# The tour's own title is a PREFIX of the scripts modal's, so "is the tour up?"
 # can never be asked with a plain substring test — it is true either way.
 def _tour_only(pg):
     return C.body_has(pg, TOUR_TITLE) and not C.body_has(pg, NEWUI_TITLE)
@@ -42,7 +42,7 @@ def _newui(c):
     with h.browser() as b:
         # ── 1. existing user: shown once ────────────────────────────────────
         # raw_page seeds the API key too, but `jobnavigator_welcomed` is what
-        # settles it: the tour is suppressed, so the upgrade modal is the one
+        # settles it: the tour is suppressed, so the scripts modal is the one
         # overlay left that can appear.
         pg = C.raw_page(b, ls={'jobnavigator_welcomed': '1'})
         try:
@@ -83,7 +83,7 @@ def _newui(c):
                 c.check('a load after Escape does not replay it', not C.body_has(pg, NEWUI_TITLE))
 
                 # Clear the mark and come back, to exercise the button on a panel
-                # raised the same way the real upgrade raises it.
+                # raised the same way the real scripts raises it.
                 pg.evaluate('(k) => { try { localStorage.removeItem(k) } catch (e) {} }', SEEN_KEY)
                 C.go(pg, '/feed', settle=900)
                 c.check('clearing the mark raises it again', C.body_has(pg, NEWUI_TITLE))
@@ -103,25 +103,25 @@ def _newui(c):
         finally:
             pg.context.close()
 
-        # ── 2. fresh profile: the tour wins, and the upgrade stays owed ──────
+        # ── 2. fresh profile: the tour wins, and the scripts stays owed ──────
         pg = C.raw_page(b)                      # nothing seeded but the API key
         try:
             C.go(pg, '/feed', settle=900)
             c.check('a fresh profile gets the first-run tour', _tour_only(pg))
-            c.check('the upgrade modal is not marked seen behind it',
+            c.check('the scripts modal is not marked seen behind it',
                     C.ls_get(pg, SEEN_KEY) is None, C.ls_get(pg, SEEN_KEY))
             pg.locator('[aria-label="Close"]').first.click()
             pg.wait_for_timeout(450)
             c.eq('dismissing the tour writes jobnavigator_welcomed',
                  C.ls_get(pg, 'jobnavigator_welcomed'), '1')
-            # V-01: a first-run tour marks the upgrade announcement seen too
-            c.eq('dismissing the first-run tour marks the upgrade seen',
+            # V-01: a first-run tour marks the scripts announcement seen too
+            c.eq('dismissing the first-run tour marks the scripts seen',
                  C.ls_get(pg, SEEN_KEY), VERSION)
 
             # the visit AFTER the tour: a brand-new user is never "upgraded"
             C.clear_log(pg)
             C.go(pg, '/feed', settle=900)
-            c.check('no upgrade modal on the next visit', not C.body_has(pg, NEWUI_TITLE))
+            c.check('no scripts modal on the next visit', not C.body_has(pg, NEWUI_TITLE))
             c.check('and no tour either', not _tour_only(pg))
         finally:
             pg.context.close()
@@ -131,7 +131,7 @@ def _newui(c):
         # answered in the browser, so the install's real choice is never read or written.
         ask = {'level': 'unset', 'asked': False, 'owner': True, 'locked': False}
         for label, seed, close in (
-                ('after the upgrade notice', {'jobnavigator_welcomed': '1'}, NEWUI_TITLE),
+                ('after the scripts notice', {'jobnavigator_welcomed': '1'}, NEWUI_TITLE),
                 ('after the first-run tour', {}, TOUR_TITLE)):
             pg = C.raw_page(b, ls=seed, telemetry=ask)
             try:

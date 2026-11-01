@@ -1,5 +1,5 @@
 // onboarding.js — which arrival overlay a profile gets. V-01: a brand-new
-// profile that closes the first-run tour must not get the 2.0 upgrade overlay
+// profile that closes the first-run tour must not get the 2.0 scripts overlay
 // ("Welcome to the new JobNavigator") on its next load.
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
@@ -12,13 +12,13 @@ beforeEach(() => { localStorage.clear(); sessionStorage.clear() })
 // what App.jsx does on a load + tour close
 const closeTourOnThisLoad = () => markWelcomed(!alreadyWelcomed())
 
-describe('first-run tour vs upgrade overlay', () => {
-  it('a fresh profile gets the tour and no upgrade overlay', () => {
+describe('first-run tour vs scripts overlay', () => {
+  it('a fresh profile gets the tour and no scripts overlay', () => {
     expect(alreadyWelcomed()).toBe(false)
     expect(newUiPending()).toBe(false)
   })
 
-  it('V-01: closing the first-run tour marks the upgrade seen, so the next load is clean', () => {
+  it('V-01: closing the first-run tour marks the scripts seen, so the next load is clean', () => {
     closeTourOnThisLoad()
     expect(localStorage.getItem(WELCOMED_KEY)).toBe('1')
     expect(localStorage.getItem(NEWUI_KEY)).toBe(NEWUI_VERSION)

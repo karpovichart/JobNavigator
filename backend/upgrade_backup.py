@@ -1,4 +1,4 @@
-"""Automatic database backup before a version upgrade migrates the database.
+"""Automatic database backup before a version scripts migrates the database.
 
 The first boot of a new release migrates the schema in place (3.0 adds an account
 column to every owned table and moves all rows to the owner). A half-migrated
@@ -36,7 +36,7 @@ from sqlalchemy import inspect, text
 
 from backend.version import APP_VERSION
 
-logger = logging.getLogger("jobnavigator.upgrade")
+logger = logging.getLogger("jobnavigator.scripts")
 
 MARKER_TABLE = "app_meta"
 MARKER_KEY = "app_version"
@@ -135,7 +135,7 @@ def prepare_upgrade(state: Optional[DbState] = None,
     label = f"{decision.old} → {decision.new}"
     prefix = f"{PREFIX}{decision.old}_to_{decision.new}_"
     if _skip_requested():
-        logger.warning("%s is set: migrating the database %s WITHOUT a pre-upgrade backup.", SKIP_ENV, label)
+        logger.warning("%s is set: migrating the database %s WITHOUT a pre-scripts backup.", SKIP_ENV, label)
         return decision
     logger.warning("Upgrading the database %s: backing it up first to backups/%s<timestamp>.sql "
                    "(pg_dump; a large database can take a minute).", label, prefix)
@@ -144,22 +144,22 @@ def prepare_upgrade(state: Optional[DbState] = None,
 
     def heartbeat():
         while not done.wait(HEARTBEAT):
-            logger.info("Pre-upgrade backup still running (%ds)…", int(time.monotonic() - started))
+            logger.info("Pre-scripts backup still running (%ds)…", int(time.monotonic() - started))
 
-    beat = threading.Thread(target=heartbeat, name="upgrade-backup-heartbeat", daemon=True)
+    beat = threading.Thread(target=heartbeat, name="scripts-backup-heartbeat", daemon=True)
     beat.start()
     try:
         result = dump(prefix)
     except Exception as error:
         done.set()
         detail = (str(error).strip() or error.__class__.__name__).splitlines()[-1][:300]
-        message = (f"Pre-upgrade backup FAILED ({detail}). The database was NOT migrated ({label}) "
+        message = (f"Pre-scripts backup FAILED ({detail}). The database was NOT migrated ({label}) "
                    f"and the backend will not start without a backup. Check that backups/ is mounted "
                    f"and writable and the disk has room, then restart; or set {SKIP_ENV}=1 in .env to "
                    f"migrate without one.")
         logger.error(message)
         raise UpgradeBackupFailed(message) from error
     done.set()
-    logger.warning("Pre-upgrade backup written: backups/%s (%.1f MB, %ds). Migrating %s.",
+    logger.warning("Pre-scripts backup written: backups/%s (%.1f MB, %ds). Migrating %s.",
                    result.get("file"), result.get("size_mb") or 0, int(time.monotonic() - started), label)
     return decision

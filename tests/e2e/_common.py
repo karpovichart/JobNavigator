@@ -35,7 +35,7 @@ def single_account_only(ctx):
 PREFIX = 'ZZE'
 # Both global overlays have to be marked seen for a driving case to reach the app
 # at all: `jobnavigator_welcomed` retires the first-run tour, and this retires the
-# 2.0 upgrade modal. A seeded context carries `jobnavigator_welcomed`, which makes
+# 2.0 scripts modal. A seeded context carries `jobnavigator_welcomed`, which makes
 # it a RETURNING profile by definition (App.jsx `isReturningUser`) — so without
 # this second mark every seeded page opens behind a scrim and every click in the
 # suite times out against it. Cases that are ABOUT an overlay use `raw_page` and

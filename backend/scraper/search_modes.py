@@ -68,7 +68,7 @@ SEARCH_MODES: dict[str, SearchMode] = {m.key: m for m in (
                background_test=True, needs_query=True, fetch_params=(("results_wanted", 100),)),
     # The roster is fetched whole; results_wanted applies per subscriber after dedup.
     SearchMode("trulyremote", "TrulyRemoteWork.com", "trulyremote", shareable=True,
-               background_test=True),
+               background_test=True, takes_proxy=True),
     SearchMode("linkedin_extension", "LinkedIn Extension", extension=True),
     SearchMode("extension", "Extension", extension=True),
 )}

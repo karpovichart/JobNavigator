@@ -34,7 +34,7 @@ const labRoute = (name, path) => {
   return <Route path={path} element={<Suspense fallback={null}><Page /></Suspense>} />
 }
 
-// The overlay storage rules (first-run tour vs upgrade announcement) live in
+// The overlay storage rules (first-run tour vs scripts announcement) live in
 // onboarding.js, where they are unit-tested.
 
 // `/v2/feed?job=7#x` → `/feed?job=7#x`; bare `/v2` → `/`. Search and hash ride
@@ -61,10 +61,10 @@ function App() {
   // profile that is BOTH new and carrying a legacy key (the harness seeds an API
   // key into an otherwise empty context) is being onboarded, not upgraded — so
   // this stays unrendered while the tour is up, and dismissing a first-run tour
-  // marks it seen (V-01), so a brand-new user never gets the upgrade overlay.
+  // marks it seen (V-01), so a brand-new user never gets the scripts overlay.
   const [showNewUi, setShowNewUi] = useState(newUiPending)
   // V-01: whether this load is a never-welcomed profile — its tour dismissal also
-  // marks the upgrade announcement seen, so a brand-new user never gets it.
+  // marks the scripts announcement seen, so a brand-new user never gets it.
   const [firstRun] = useState(() => !alreadyWelcomed())
 
   // Handle ?cv= query param tracer links — redirect to /cv/{token} on backend

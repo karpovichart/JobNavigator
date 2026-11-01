@@ -82,6 +82,7 @@ ipython_config.py
 
 # Environments
 .env
+!docker/socks5/.env
 .envrc
 .venv
 env/

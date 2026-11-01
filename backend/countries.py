@@ -4,7 +4,7 @@ jobspy picks the Indeed domain and the `indeed-co` API header from the
 `country_indeed` string it receives, and it accepts only the names its own
 `Country` enum knows. The project therefore keeps no country list of its own:
 every name here comes from `jobspy.model.Country` at call time, so a library
-upgrade adds or removes countries without a code change.
+scripts adds or removes countries without a code change.
 """
 
 from functools import lru_cache

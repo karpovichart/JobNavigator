@@ -230,9 +230,10 @@ async def _fetch_roster(client: httpx.AsyncClient) -> list[dict]:
     return copy.deepcopy(rows)
 
 
-async def _fetch_roster_standalone() -> list[dict]:
+async def _fetch_roster_standalone(proxy_url: str | None = None) -> list[dict]:
     """The roster in a client of its own (a shared fetch runs this once for every subscriber)."""
-    async with httpx.AsyncClient(timeout=30, headers={"User-Agent": _UA}) as client:
+    proxy = {"proxy": proxy_url} if proxy_url else {}
+    async with httpx.AsyncClient(timeout=30, headers={"User-Agent": _UA}, **proxy) as client:
         return await _fetch_roster(client)
 
 
@@ -341,7 +342,7 @@ def _remember_ignored(db, j: dict, search: Search, existing_ids: set) -> bool:
     return True
 
 
-async def run(search: Search, shared=None) -> dict:
+async def run(search: Search, proxy_url: str | None = None, shared=None) -> dict:
     """Full scrape entry point. Fetch roster → filter → fetch details → save to DB.
 
     `shared` (MT-8 SharedFetch): the roster is the whole corpus, the same for every search, so
@@ -358,12 +359,13 @@ async def run(search: Search, shared=None) -> dict:
             existing_ids = get_existing_external_ids(db)
             detail_cache = halt = None
             if shared is not None:
-                listings = await shared.get(_fetch_roster_standalone)
+                listings = await shared.get(lambda: _fetch_roster_standalone(proxy_url))
                 detail_cache = shared.memo.setdefault("trulyremote_details", {})
                 # A throttle stop holds for every later subscriber of this fetch (R30 S-05).
                 halt = shared.memo.setdefault("trulyremote_halt", {})
 
-            async with httpx.AsyncClient(timeout=30, headers={"User-Agent": _UA}) as client:
+            proxy = {"proxy": proxy_url} if proxy_url else {}
+            async with httpx.AsyncClient(timeout=30, headers={"User-Agent": _UA}, **proxy) as client:
                 # The roster is the whole corpus and is not query-filtered, so the title and
                 # company filters do the narrowing — slice only after they run, or a keyword
                 # search could miss its matches entirely.
@@ -518,7 +520,7 @@ async def run(search: Search, shared=None) -> dict:
         return {"jobs_found": 0, "new_jobs": 0, "error": str(e), "duration": duration}
 
 
-async def preview(search: Search, db) -> dict:
+async def preview(search: Search, db, proxy_url: str | None = None) -> dict:
     """Dry-run: fetch the roster, apply filters, return per-job diagnostics without saving."""
     start = time.time()
     try:
@@ -526,7 +528,8 @@ async def preview(search: Search, db) -> dict:
         global_exclude_set, search_exclude_set = build_search_exclude_sets(db, search)
         all_exclude = list(global_exclude_set | search_exclude_set)
 
-        async with httpx.AsyncClient(timeout=30, headers={"User-Agent": _UA}) as client:
+        proxy = {"proxy": proxy_url} if proxy_url else {}
+        async with httpx.AsyncClient(timeout=30, headers={"User-Agent": _UA}, **proxy) as client:
             unique = await _fetch_roster(client)
             survivors = []
             for j in unique:

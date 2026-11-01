@@ -138,6 +138,17 @@ If you change the extension's files later, remove and re-add it; a plain reload 
 
 **H-1B**: Settings › Pipeline holds the global exclude phrases scanned in every description and the cron that refreshes the sponsorship dataset. Ignore it if visa sponsorship is not your concern.
 
+## Optional SOCKS5 proxy
+
+The standalone proxy lives in `docker/socks5/`; its `.env` defaults to localhost only (`127.0.0.1:1080`, allowlist `127.0.0.1/32`). To allow a trusted IPv4 subnet, edit that folder's `.env` with the server's LAN interface address and client subnet, for example:
+
+```env
+SOCKS5_BIND_IP=192.168.1.10
+SOCKS5_ALLOWED_SUBNET=192.168.1.0/24
+```
+
+From the repository root, start it with `docker compose --env-file docker/socks5/.env -f docker/socks5/compose.yml up -d --build`. Clients connect to `192.168.1.10:1080` with SOCKS5 and no credentials. Dante checks the source address against the CIDR; bind the port only to a trusted/private interface and keep the host firewall restricted to that subnet.
+
 ## Accounts
 
 One install can hold up to five accounts, for a household or a couple of friends. Skip this section if it is only you; with one account the account switcher stays out of sight and Settings › Accounts holds just your own row (PIN, API token, name and colour).

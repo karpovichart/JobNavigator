@@ -721,7 +721,7 @@ def test_a_failing_eager_reload_does_not_break_the_migration(test_db, monkeypatc
 
 def test_run_seeds_brings_an_empty_database_up(test_db):
     """The whole startup path in order: migrations, settings, companies, searches,
-    the sample résumé, the persona and the cleanup/upgrade migrations."""
+    the sample résumé, the persona and the cleanup/scripts migrations."""
     seed.run_seeds()
 
     settings = {s.key: s.value for s in test_db.query(Setting).all()}

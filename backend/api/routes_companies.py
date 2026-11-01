@@ -69,6 +69,7 @@ def detect_scrape_type(url: str) -> str:
 
 class CompanyCreate(BaseModel):
     name: str
+    active: bool = True
     tier: Optional[int] = 2
     scrape_urls: List[str] = []
     selected_resume_ids: List[str] = []
@@ -277,7 +278,7 @@ def create_company(data: CompanyCreate, background_tasks: BackgroundTasks, db: S
         notes=data.notes,
         aliases=[a.strip() for a in data.aliases if a and a.strip()],
         auto_scoring_depth=data.auto_scoring_depth,
-        active=True,
+        active=data.active,
         playwright_enabled=True,
     )
     db.add(company)

@@ -461,7 +461,10 @@ async def test_search(search_id: str, db: Session = Depends(get_db)):
                 else:
                     import importlib
                     source = importlib.import_module(f"backend.scraper.sources.{mode.module}")
-                    result = await source.preview(test_search_obj, test_db)
+                    preview_kwargs = {}
+                    if mode.takes_proxy:
+                        preview_kwargs["proxy_url"] = get_setting(test_db, "proxy_url") or None
+                    result = await source.preview(test_search_obj, test_db, **preview_kwargs)
                 _store("done", result)
             except Exception as e:
                 logger.error(f"Test run {run_id} failed: {e}")

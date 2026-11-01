@@ -24,7 +24,7 @@ services:
   backend:
     # Prebuilt on every release (ghcr.io, .github/workflows/images.yml): `docker compose pull`
     # skips the Chromium build. `docker compose up --build` still builds from source.
-    image: ghcr.io/vesaias/jobnavigator-backend:${JN_IMAGE_TAG:-latest}
+    image: ghcr.io/karpovichart/jobnavigator-backend:${JN_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.backend
@@ -52,7 +52,7 @@ services:
       - antigravity_auth:/root/.gemini
 
   frontend:
-    image: ghcr.io/vesaias/jobnavigator-frontend:${JN_IMAGE_TAG:-latest}
+    image: ghcr.io/karpovichart/jobnavigator-frontend:${JN_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.frontend
