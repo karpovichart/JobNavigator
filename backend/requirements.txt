@@ -7,6 +7,7 @@ pdfplumber==0.11.9
 python-multipart==0.0.31  # >=0.0.31 required: PYSEC-2026-3040 (0.0.27 DoS); prior PYSEC DoS fix
 apscheduler==3.10.4
 httpx[socks]==0.28.1
+requests[socks]>=2.32,<3
 anthropic==0.42.0
 openai==1.82.0
 python-telegram-bot==21.9
