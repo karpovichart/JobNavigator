@@ -251,6 +251,7 @@ async def safe_get(
     *,
     timeout: float = 15.0,
     headers: dict | None = None,
+    proxy_url: str | None = None,
 ) -> httpx.Response:
     """httpx.get with SSRF protection.
 
@@ -260,7 +261,10 @@ async def safe_get(
     chain raises UnsafeURLError.
     """
     logical = url
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+    client_options = {"timeout": timeout, "follow_redirects": False}
+    if proxy_url:
+        client_options["proxy"] = proxy_url
+    async with httpx.AsyncClient(**client_options) as client:
         for _ in range(MAX_REDIRECTS + 1):
             target = await _resolve_public_http_url_async(logical)
             request_headers = dict(headers or {})

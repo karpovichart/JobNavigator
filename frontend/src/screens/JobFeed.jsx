@@ -219,6 +219,7 @@ export default function V2JobFeed() {
   useEffect(() => { try { localStorage.setItem(UI_KEY, JSON.stringify({ headOpen, reportOpen, breakdownOpen, keywordOpen, reqOpen, reqFilter, showMatched })) } catch {} }, [headOpen, reportOpen, breakdownOpen, keywordOpen, reqOpen, reqFilter, showMatched])
   const [viewCached, setViewCached] = useState(__DEMO__)
   const [cachedHtml, setCachedHtml] = useState(null)
+  const [proxyConfigured, setProxyConfigured] = useState(null)
   // Posting zoom. `postZoom` is what the frames render at whether or not the
   // floater is shown — turning the control off hides the affordance, it does not
   // resize what is already on screen; `feed_zoom_floater` only gates the pill.
@@ -767,6 +768,10 @@ export default function V2JobFeed() {
     setChecked(new Set())
   }
 
+  const openPostingUrl = useCallback((job) => proxyConfigured !== false && !__DEMO__
+    ? `/api/jobs/${job.id}/live-page`
+    : openLink(job), [proxyConfigured])
+
   // Gated on `!confirm` so a dialog's own useEscape owns the key while one is open,
   // and on there actually being something to close: an always-on listener claims the
   // key with preventDefault() even when it closes nothing, and the global Welcome /
@@ -791,7 +796,7 @@ export default function V2JobFeed() {
         case 's': if (job) { const nextStatus = job.saved ? 'new' : 'saved'; saveJob(job); if (!leavesView(nextStatus)) focusAt(Math.min(idx + 1, list.length - 1)) } break
         case 'x': if (job) { skipJob(job); if (!leavesView('skip')) focusAt(Math.min(idx + 1, list.length - 1)) } break
         case 'a': if (job) applyJob(job); break
-        case 'e': case 'o': if (openLink(job)) { opened(job); window.open(openLink(job), '_blank', 'noopener,noreferrer') } break
+        case 'e': case 'o': if (openLink(job)) { opened(job); window.open(openPostingUrl(job), '_blank', 'noopener,noreferrer') } break
         case 'r': if (job) openRescore(job); break
         case 't': if (job) setPicker({ mode: 'tailor', jobs: [job] }); break   // the ⋯ menus hint t
         case 'c': if (job) navigate(`/cover-letters?job=${job.id}`); break   // and c
@@ -800,7 +805,7 @@ export default function V2JobFeed() {
     }
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusAt])
+  }, [focusAt, openPostingUrl])
   useEffect(() => { const el = listRef.current?.querySelector(`[data-row="${sel}"]`); if (el) el.scrollIntoView({ block: 'nearest' }) }, [sel])
 
   // cached page fetch when toggled on
@@ -818,7 +823,7 @@ export default function V2JobFeed() {
   // Extension off: probe whether the posting will embed (X-Frame-Options / CSP frame-ancestors).
   // Always try the live iframe first — only a confident block routes to the extension message; the probe runs once per host and is cached.
   useEffect(() => {
-    if (!detail || !openLink(detail) || viewCached || extActive) return
+    if (!detail || !openLink(detail) || proxyConfigured !== false || viewCached || extActive) return
     const host = hostOf(openLink(detail))
     if (!host || frameCache.current[host] !== undefined) return
     const id = detail.id
@@ -831,13 +836,15 @@ export default function V2JobFeed() {
       try { localStorage.setItem(FRAME_KEY, JSON.stringify(next)) } catch {}
       if (detailRef.current?.id === id) setFrameOk(ok)
     }).catch(() => { /* unknown — leave the optimistic frame up */ })
-  }, [detail, viewCached, extActive])
+  }, [detail, proxyConfigured, viewCached, extActive])
 
   // The src the live posting frame gets. Any route away from it (cached snapshot, confirmed block,
   // a load that never arrived) makes it null, and the pane renders the cached or fallback branch.
   const cachedAvail = __DEMO__ ? !!detail : !!(detail && detail.status === 'applied' && detail.has_cached_page)
   const frameJobId = detail?.id || null
-  const frameSrc = (openLink(detail) && !(viewCached && cachedAvail) && (extActive || frameOk !== false) && frameDeadId !== detail.id) ? openLink(detail) : null
+  const frameSrc = (proxyConfigured !== null && openLink(detail) && !(viewCached && cachedAvail)
+    && (proxyConfigured === true || extActive || frameOk !== false) && frameDeadId !== detail.id)
+    ? openPostingUrl(detail) : null
   // Cover goes up when a frame mounts/src changes, down on load/error or the safety timeout (closed-over id
   // guards a stale timer). Layout effect so the cover paints with the frame's first frame, not one paint late.
   useLayoutEffect(() => {
@@ -878,9 +885,10 @@ export default function V2JobFeed() {
     api.get('/settings').then(({ data }) => {
       setDefaultDepth(data?.scoring_default_depth === 'full' ? 'full' : 'light')
       setZoomFloater(!(data?.feed_zoom_floater === false || data?.feed_zoom_floater === 'false'))
+      setProxyConfigured(Boolean(data?.proxy_configured ?? data?.proxy_url))
       const every = Number(data?.scrape_interval_minutes)
       setScrapeEvery(Number.isFinite(every) ? every : null)
-    }).catch(() => { /* silent: the light default already applies */ })
+    }).catch(() => { setProxyConfigured(false) /* keep direct opening available if settings cannot load */ })
   }, [])
 
   // Is the posting still open: checked when a job is opened, the answer kept a day (still_open.py).
@@ -1408,7 +1416,7 @@ export default function V2JobFeed() {
                         <>
                           <div onClick={() => setRowMenu(null)} style={{ position: 'fixed', inset: 0, zIndex: 59 }} />
                           <Menu ariaLabel="Job actions" style={{ position: 'fixed', left: rowMenu.left, top: rowMenu.top, bottom: rowMenu.bottom, zIndex: 60, width: 228 }}>
-                            {[['Mark applied', 'a', () => applyJob(j)], ['Tailor résumé', 't', () => setPicker({ mode: 'tailor', jobs: [j] })], ['Rescore', 'r', () => openRescore(j)], [__DEMO__ ? 'Open posting ↗ · original may have expired' : 'Open posting ↗', 'e', () => openLink(j) && window.open(openLink(j), '_blank', 'noopener,noreferrer')]].map(([label, key, act]) => (
+                            {[['Mark applied', 'a', () => applyJob(j)], ['Tailor résumé', 't', () => setPicker({ mode: 'tailor', jobs: [j] })], ['Rescore', 'r', () => openRescore(j)], [proxyConfigured !== false && !__DEMO__ ? 'Open posting via proxy ↗' : (__DEMO__ ? 'Open posting ↗ · original may have expired' : 'Open posting ↗'), 'e', () => openLink(j) && window.open(openPostingUrl(j), '_blank', 'noopener,noreferrer')]].map(([label, key, act]) => (
                               <MenuItem key={label} hint={key} hintMono onClick={() => { setRowMenu(null); act() }}
                                 style={label === 'Tailor résumé' ? { fontWeight: 600 } : undefined}>{label}</MenuItem>
                             ))}
@@ -1490,7 +1498,7 @@ export default function V2JobFeed() {
                     {/* the employer's own posting when there is one (linkKinds.js openLink), else the job's link */}
                     {closedTag(d) && <span title={closedTag(d).title} onClick={() => setRecheck((n) => n + 1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--dot-bad)', cursor: 'pointer' }}><Dot tone="bad" />{closedTag(d).text}</span>}
                     {linkTag(d) && <Tag title={linkTag(d).title}>{linkTag(d).text}</Tag>}
-                    {openLink(d) && <Button variant="secondary" size="sm" href={openLink(d)} target="_blank" title={openLink(d)} onClick={() => opened(d)} style={{ height: headOpen ? 36 : 30 }}>Open ↗</Button>}
+                    {openLink(d) && <Button variant="secondary" size="sm" href={openPostingUrl(d)} target="_blank" rel="noopener noreferrer" title={openPostingUrl(d)} onClick={() => opened(d)} style={{ height: headOpen ? 36 : 30 }}>{proxyConfigured !== false && !__DEMO__ ? 'Open via proxy ↗' : 'Open ↗'}</Button>}
                     {/* Routed through Button (not hand-drawn) so it reads --btn-shadow/--btn-weight/--btn-primary-bg/-ink
                         and the hover/pressed rules; the style override only restores height/padding/line-height, which track the collapsing header. */}
                     {/* while a tailor runs the button says so and does nothing: `disabled`
@@ -1754,7 +1762,7 @@ export default function V2JobFeed() {
                   <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                     {dCached && !__DEMO__ && (
                       <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 9, padding: '9px 30px', borderBottom: '1px solid var(--line)', background: 'var(--surface-2)' }}>
-                        <span style={{ fontSize: 12, color: viewCached ? 'var(--accent)' : 'var(--muted)' }}>{viewCached ? 'Cached snapshot · captured when you applied' : 'Live posting'}</span>
+                        <span style={{ fontSize: 12, color: viewCached ? 'var(--accent)' : 'var(--muted)' }}>{viewCached ? 'Cached snapshot · captured when you applied' : (proxyConfigured === true ? 'Live posting · via proxy' : 'Live posting')}</span>
                         <Segmented variant="inset" ariaLabel="Posting view" value={viewCached ? 'cached' : 'live'}
                           onChange={(v) => setViewCached(v === 'cached')} style={{ marginLeft: 'auto' }}
                           options={[{ value: 'live', label: 'Live' }, { value: 'cached', label: 'Cached' }]} />
@@ -1773,6 +1781,10 @@ export default function V2JobFeed() {
                           <ZoomFloater zoom={postZoom} onIn={() => zoomTo(postZoom + 10)} onOut={() => zoomTo(postZoom - 10)}
                             onReset={() => zoomTo(100)} style={{ position: 'absolute', right: 30, top: 14, zIndex: 6 }} />
                         )}
+                      </div>
+                    ) : proxyConfigured === null && openLink(d) ? (
+                      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                        <Spinner size={12} /><Helper>Checking proxy setting…</Helper>
                       </div>
                     ) : frameSrc ? (
                       /* optimistic: always try the live frame; only a confirmed block swaps it out. `key` remounts
@@ -1796,7 +1808,7 @@ export default function V2JobFeed() {
                         {frameLoadId === frameJobId && (
                           <div style={{ position: 'absolute', inset: 0, background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                             <Spinner size={12} />
-                            <Helper>{`Loading ${hostOf(frameSrc).replace(/^www\./, '')} …`}</Helper>
+                            <Helper>{`Loading ${hostOf(openLink(d)).replace(/^www\./, '')}${proxyConfigured === true ? ' through proxy' : ''} …`}</Helper>
                           </div>
                         )}
                       </div>
@@ -1812,7 +1824,7 @@ export default function V2JobFeed() {
                             {/* round 9: `Button href` renders the real anchor this
                                 needed, on the primary button's own paint (which is
                                 the --accent / --accent-ink pair it drew by hand) */}
-                            <Button size="sm" href={openLink(d)} target="_blank" style={{ height: 34 }}>Open in new tab ↗{__DEMO__ ? ' · original may have expired' : ''}</Button>
+                            <Button size="sm" href={openPostingUrl(d)} target="_blank" rel="noopener noreferrer" style={{ height: 34 }}>{proxyConfigured !== false && !__DEMO__ ? 'Open via proxy ↗' : `Open in new tab ↗${__DEMO__ ? ' · original may have expired' : ''}`}</Button>
                             {/* ui: keep — h34 to match the native anchor it sits beside (which stays inline) */}
                             {dCached && <Button variant="secondary" size="sm" hover="v2-act" onClick={() => setViewCached(true)} style={{ height: 34 }}>View cached snapshot</Button>}
                           </div>

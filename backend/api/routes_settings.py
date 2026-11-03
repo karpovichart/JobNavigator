@@ -162,6 +162,9 @@ def get_settings(meta: bool = Query(False, description="Add `_meta` (per-key sec
             result[key] = json.loads(value)
         except (json.JSONDecodeError, TypeError):
             result[key] = value
+    # The feed needs to choose between a direct external iframe and the backend's
+    # SSRF-guarded page reader, without exposing an owner-only proxy URL to members.
+    result["proxy_configured"] = bool(acct_settings.get_setting(db, "proxy_url"))
     if not member_caller:
         # L-03: the address each local model server uses now (setting, else env, else default),
         # which Settings › Models shows as the placeholder of an empty box. Owner only: it can

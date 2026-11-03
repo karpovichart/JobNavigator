@@ -1220,10 +1220,12 @@ async def frame_check(job_id: str, db: Session = Depends(get_db)):
     if not job_link(job):
         return {"embeddable": False}
     from backend.scraper._shared.url_safety import safe_get, UnsafeURLError
+    from backend.accounts.settings import get_setting
+    proxy_url = get_setting(db, "proxy_url") or None
     try:
         resp = await safe_get(job_link(job), timeout=12, headers={
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        })
+        }, proxy_url=proxy_url)
         xfo = (resp.headers.get("x-frame-options") or "").strip()
         csp = (resp.headers.get("content-security-policy") or "").lower()
         blocked = bool(xfo) or ("frame-ancestors" in csp)
@@ -1259,11 +1261,13 @@ async def get_live_page(job_id: str, db: Session = Depends(get_db)):
 
     from backend.scraper._shared.url_safety import safe_get, UnsafeURLError
     from backend.api.routes_applications import _extract_clean_content
+    from backend.accounts.settings import get_setting
+    proxy_url = get_setting(db, "proxy_url") or None
     try:
         resp = await safe_get(job_link(job), timeout=20, headers={
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        })
+        }, proxy_url=proxy_url)
         resp.raise_for_status()
         raw = resp.text[:2_000_000]
     except UnsafeURLError:
