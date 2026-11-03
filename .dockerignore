@@ -3,6 +3,12 @@ __pycache__
 *.pyc
 node_modules
 backups
+docker-metrics-*/
+.idea/
+extension/
+scripts/
+tests/
+docker/
 .env
 .linkedin_api
 docs

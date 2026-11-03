@@ -1250,6 +1250,57 @@ def _inject_base(raw_html: str, url: str) -> str:
     return base_tag + raw_html
 
 
+async def _render_live_page(url: str, proxy_url: str | None) -> str:
+    """Render a JavaScript-driven posting in Chromium, optionally through the configured proxy."""
+    from urllib.parse import unquote, urlsplit
+    from playwright.async_api import async_playwright
+    from backend.scraper._shared.url_safety import UnsafeURLError, _resolve_public_http_url_async
+
+    proxy = None
+    if proxy_url:
+        parsed_proxy = urlsplit(proxy_url)
+        if parsed_proxy.scheme not in {"http", "https", "socks5"} or not parsed_proxy.hostname:
+            raise ValueError("Configured proxy URL is invalid")
+        proxy = {"server": f"{parsed_proxy.scheme}://{parsed_proxy.hostname}:{parsed_proxy.port or (443 if parsed_proxy.scheme == 'https' else 1080 if parsed_proxy.scheme == 'socks5' else 80)}"}
+        if parsed_proxy.username:
+            proxy["username"] = unquote(parsed_proxy.username)
+        if parsed_proxy.password:
+            proxy["password"] = unquote(parsed_proxy.password)
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=True, proxy=proxy)
+        try:
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                viewport={"width": 1280, "height": 900},
+                locale="en-US",
+            )
+            page = await context.new_page()
+            await page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
+
+            async def guard_request(route):
+                request_url = route.request.url
+                if request_url.startswith(("http://", "https://")):
+                    try:
+                        await _resolve_public_http_url_async(request_url)
+                    except UnsafeURLError:
+                        await route.abort()
+                        return
+                await route.continue_()
+
+            await page.route("**/*", guard_request)
+            await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+            try:
+                await page.wait_for_load_state("networkidle", timeout=5000)
+            except Exception:
+                # Many job sites keep analytics and long-poll requests open.
+                pass
+            await page.wait_for_timeout(1500)
+            return await page.content()
+        finally:
+            await browser.close()
+
+
 @router.get("/{job_id}/live-page")
 async def get_live_page(job_id: str, db: Session = Depends(get_db)):
     """Fetch the posting from the backend (SSRF-guarded) and return its own HTML so the feed can show the real page even when the extension isn't stripping X-Frame-Options; warms the cached_page_* columns as a side effect."""
@@ -1282,7 +1333,14 @@ async def get_live_page(job_id: str, db: Session = Depends(get_db)):
     # postings come back near-empty (just a spinner without scripts) — treat that as a failure.
     clean_html, text = _extract_clean_content(raw)
     if len((text or "").strip()) < 200:
-        raise HTTPException(status_code=502, detail="Posting is rendered client-side — needs the extension")
+        try:
+            rendered = await _render_live_page(str(resp.url), proxy_url)
+            clean_html, text = _extract_clean_content(rendered)
+            raw = rendered
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Could not render posting through proxy: {e}")
+    if len((text or "").strip()) < 200:
+        raise HTTPException(status_code=502, detail="Posting did not expose readable content after JavaScript rendering; the site may require an interactive anti-bot challenge")
     # warm the cache with cleaned text for scoring; never overwrite an existing snapshot
     if not job.cached_page_html and clean_html:
         try:
@@ -1291,6 +1349,8 @@ async def get_live_page(job_id: str, db: Session = Depends(get_db)):
             db.commit()
         except Exception:
             db.rollback()
+    # A browser-rendered page is now a static DOM snapshot; original scripts remain
+    # disabled by the sandbox CSP, while its page content and styling can be displayed.
     return HTMLResponse(content=_inject_base(raw, str(resp.url)), headers=_READER_CSP)
 
 

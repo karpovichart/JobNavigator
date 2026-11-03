@@ -102,13 +102,15 @@ jobs:
           context: .
           file: Dockerfile.backend
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Keep CI and the publish workflow on the same per-image cache scopes.
+          # Separate scopes prevent backend/frontend builds from replacing each other's cache.
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
       - name: Build frontend image
         uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.frontend
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max

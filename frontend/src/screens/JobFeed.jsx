@@ -852,12 +852,13 @@ export default function V2JobFeed() {
     const id = frameJobId
     frameDoneRef.current = false
     setFrameLoadId(id)
+    const timeoutMs = proxyConfigured === true ? 45000 : FRAME_LOAD_MS
     const t = setTimeout(() => {
       setFrameLoadId((c) => (c === id ? null : c))
       if (!frameDoneRef.current) setFrameDeadId(id)
-    }, FRAME_LOAD_MS)
+    }, timeoutMs)
     return () => clearTimeout(t)
-  }, [frameSrc, frameJobId])
+  }, [frameSrc, frameJobId, proxyConfigured])
   const settleFrame = useCallback((id) => {
     frameDoneRef.current = true
     setFrameLoadId((c) => (c === id ? null : c))
@@ -1499,6 +1500,7 @@ export default function V2JobFeed() {
                     {closedTag(d) && <span title={closedTag(d).title} onClick={() => setRecheck((n) => n + 1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--dot-bad)', cursor: 'pointer' }}><Dot tone="bad" />{closedTag(d).text}</span>}
                     {linkTag(d) && <Tag title={linkTag(d).title}>{linkTag(d).text}</Tag>}
                     {openLink(d) && <Button variant="secondary" size="sm" href={openPostingUrl(d)} target="_blank" rel="noopener noreferrer" title={openPostingUrl(d)} onClick={() => opened(d)} style={{ height: headOpen ? 36 : 30 }}>{proxyConfigured !== false && !__DEMO__ ? 'Open via proxy ↗' : 'Open ↗'}</Button>}
+                    {openLink(d) && proxyConfigured === true && !__DEMO__ && <Button variant="secondary" size="sm" href={openLink(d)} target="_blank" rel="noopener noreferrer" title="Open the original posting directly" onClick={() => opened(d)} style={{ height: headOpen ? 36 : 30 }}>Open directly ↗</Button>}
                     {/* Routed through Button (not hand-drawn) so it reads --btn-shadow/--btn-weight/--btn-primary-bg/-ink
                         and the hover/pressed rules; the style override only restores height/padding/line-height, which track the collapsing header. */}
                     {/* while a tailor runs the button says so and does nothing: `disabled`
@@ -1825,6 +1827,7 @@ export default function V2JobFeed() {
                                 needed, on the primary button's own paint (which is
                                 the --accent / --accent-ink pair it drew by hand) */}
                             <Button size="sm" href={openPostingUrl(d)} target="_blank" rel="noopener noreferrer" style={{ height: 34 }}>{proxyConfigured !== false && !__DEMO__ ? 'Open via proxy ↗' : `Open in new tab ↗${__DEMO__ ? ' · original may have expired' : ''}`}</Button>
+                            {proxyConfigured === true && !__DEMO__ && <Button variant="secondary" size="sm" href={openLink(d)} target="_blank" rel="noopener noreferrer" onClick={() => opened(d)} style={{ height: 34 }}>Open directly ↗</Button>}
                             {/* ui: keep — h34 to match the native anchor it sits beside (which stays inline) */}
                             {dCached && <Button variant="secondary" size="sm" hover="v2-act" onClick={() => setViewCached(true)} style={{ height: 34 }}>View cached snapshot</Button>}
                           </div>
